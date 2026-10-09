@@ -173,7 +173,16 @@ func (mc *MessageConverter) EditToMatrix(
 		if msg.SubType == slack.MsgSubTypeThreadBroadcast {
 			modifiedPart.Content.BeeperBroadcastOutsideThread = true
 		}
-		output.ModifiedParts = append(output.ModifiedParts, modifiedPart.ToEditPart(editTargetPart))
+		editPart := modifiedPart.ToEditPart(editTargetPart)
+		// A message_changed without an edit stamp is Slack adjusting the message itself (a thread
+		// broadcast, an unfurl), not the user editing it, so clients should not label it as edited.
+		if msg.Edited == nil {
+			if editPart.TopLevelExtra == nil {
+				editPart.TopLevelExtra = make(map[string]any)
+			}
+			editPart.TopLevelExtra["com.beeper.dont_render_edited"] = true
+		}
+		output.ModifiedParts = append(output.ModifiedParts, editPart)
 	}
 	return output
 }
